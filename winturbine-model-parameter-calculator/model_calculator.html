@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Wind Turbine Model Scaler</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div class="container">
+    <h1>Wind Turbine Model Scaler</h1>
+    <p class="muted">Calculate model distance, RPM, and blur estimates for your wind turbine shoots. Enter real and model parameters below.</p>
+
+    <div class="input-grid">
+      <div class="card">
+        <h3>Real Turbine</h3>
+        <label>Rotor Radius (m)</label>
+        <input id="r_real" type="number" step="any" placeholder="50" />
+        <label>Tip Speed (km/h)</label>
+        <input id="v_tip_real" type="number" value="150" />
+        <label>Shooting Distance (m)</label>
+        <input id="R_real" type="number" value="75" />
+      </div>
+
+      <div class="card">
+        <h3>Model Turbine</h3>
+        <label>Model Rotor Radius (m)</label>
+        <input id="r_model" type="number" value="1" />
+      </div>
+
+      <div class="card">
+        <h3>Camera Settings</h3>
+        <label>Focal Length (mm)</label>
+        <input id="f_mm" type="number" value="100" />
+        <label>Pixel Pitch (µm)</label>
+        <input id="pixel_pitch" type="number" value="5.94" />
+        <label>Max Blur Target (px)</label>
+        <input id="blur_px_target" type="number" value="2" />
+      </div>
+    </div>
+
+    <button id="run">Compute Settings</button>
+
+    <div id="out"></div>
+
+    <div id="formulae" class="card">
+      <h3>Technical Details & Formulae</h3>
+      <div class="formulae-block">
+        <p>Angular speed: <span class="var">ω = v<sub>tip</sub> / r</span></p>
+        <p>Model RPM: <span class="var">RPM = ω · 60 / (2π)</span></p>
+        <p>Scaled distance: <span class="var">R<sub>model</sub> = R<sub>real</sub> · (r<sub>model</sub> / r<sub>real</sub>)</span></p>
+        <p>Image speed: <span class="var">v<sub>img</sub> = v · f / R</span></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>

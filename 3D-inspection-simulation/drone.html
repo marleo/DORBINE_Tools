@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Turbine Inspection 3D</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; font-family: sans-serif; }
+        canvas { display: block; }
+        
+        /* Main Info Panel */
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            pointer-events: auto;
+            user-select: none;
+            width: 240px;
+        }
+        .close-btn {
+            float: right;
+            cursor: pointer;
+            color: #ff5555;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        /* Drone Feed UI */
+        #drone-cam-label {
+            position: absolute;
+            bottom: 320px;
+            left: 10px;
+            color: lime;
+            font-family: monospace;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+            pointer-events: none;
+        }
+        #cam-border {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 300px;
+            height: 225px;
+            border: 2px solid lime;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            z-index: 10;
+        }
+        .rec {
+            color: red;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* Camera Controls Panel */
+        #cam-controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(20, 20, 20, 0.9);
+            color: #eee;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            width: 260px;
+            user-select: none;
+        }
+        #cam-controls h4 { margin: 0 0 10px 0; color: lime; border-bottom: 1px solid #555; padding-bottom: 5px; }
+        .control-group { margin-bottom: 10px; }
+        .control-group label { display: block; font-size: 12px; margin-bottom: 5px; color: #aaa; }
+        .control-group input { width: 100%; cursor: pointer; }
+        .value-display { float: right; color: white; font-weight: bold; font-size: 12px; }
+
+        /* Lab Calc Styles */
+        #lab-calc {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed #555;
+        }
+        #lab-calc h5 { margin: 0 0 8px 0; color: #ffcc00; font-size: 13px; }
+        .calc-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; }
+        .calc-val { font-weight: bold; color: white; }
+        .warning { color: #ff5555; font-weight: bold; font-size: 10px; display: block; text-align: right;}
+    </style>
+</head>
+<body>
+    <!-- Info Panel -->
+    <div id="info">
+        <span class="close-btn" onclick="this.parentElement.style.display='none'">[X]</span>
+        <h3>Drone Inspection Sim</h3>
+        <p><b>Controls (WASD):</b></p>
+        <p>W / S: Move Up / Down</p>
+        <p>A / D: Move Left / Right</p>
+        <hr style="border-color: #444;">
+        <p style="font-size: 0.9em; color: #ccc;">Left Click: Rotate View<br>Right Click: Pan<br>Scroll: Zoom</p>
+    </div>
+
+    <!-- Drone Feed Overlay -->
+    <div id="drone-cam-label">DRONE FEED <span class="rec">● REC</span></div>
+    <div id="cam-border"></div>
+
+    <!-- Camera Settings -->
+    <div id="cam-controls">
+        <h4>Settings</h4>
+        
+        <div class="control-group">
+            <label>Focal Length: <span id="val-focal" class="value-display">35mm</span></label>
+            <input type="range" id="input-focal" min="14" max="200" value="35">
+        </div>
+
+        <div class="control-group">
+            <label>Drone Distance: <span id="val-dist" class="value-display">35m</span></label>
+            <input type="range" id="input-dist" min="10" max="150" value="35">
+        </div>
+
+        <div class="control-group">
+            <label>Turbine RPM: <span id="val-rpm" class="value-display">10 RPM</span></label>
+            <input type="range" id="input-rpm" min="0" max="30" value="10">
+        </div>
+
+        <div class="control-group">
+            <label>Turbine Diameter: <span id="val-dia" class="value-display">90m</span></label>
+            <input type="range" id="input-dia" min="40" max="150" value="90">
+        </div>
+
+        <div id="lab-calc">
+            <h5>🧪 Lab Setup (Model: 2m, Lens: 200mm)</h5>
+            <div class="calc-row">
+                <span>Tripod Distance:</span>
+                <span id="lab-dist" class="calc-val">--</span>
+            </div>
+            <span id="lab-warn" class="warning"></span>
+            <div class="calc-row">
+                <span>Required Model RPM:</span>
+                <span id="lab-rpm" class="calc-val">--</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import map for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, droneCamera, fovSpotlight, renderer, controls;
+        let turbineGroup, droneGroup, bladesGroup;
+        let clock = new THREE.Clock();
+
+        // UI Elements
+        const inputFocal = document.getElementById('input-focal');
+        const valFocal = document.getElementById('val-focal');
+        const inputDist = document.getElementById('input-dist');
+        const valDist = document.getElementById('val-dist');
+        const inputRPM = document.getElementById('input-rpm');
+        const valRPM = document.getElementById('val-rpm');
+        const inputDia = document.getElementById('input-dia');
+        const valDia = document.getElementById('val-dia');
+        
+        // Lab Calc Elements
+        const labDistDisplay = document.getElementById('lab-dist');
+        const labRpmDisplay = document.getElementById('lab-rpm');
+        const labWarnDisplay = document.getElementById('lab-warn');
+
+        // Lab Constants
+        const CONST_LAB_DIA = 2.0; // meters
+        const CONST_LAB_MFD = 1.5; // meters (Minimum Focus Distance)
+        const CONST_LAB_FOCAL = 200; // mm (Test Lens)
+
+        // Input State
+        const keys = {
+            w: false,
+            s: false,
+            a: false,
+            d: false
+        };
+
+        init();
+        updateLabCalc(); // Initial calc
+        animate();
+
+        function init() {
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 50, 250);
+
+            // Main Camera (Observer)
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(80, 80, 100);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            document.body.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); 
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            dirLight.position.set(100, 200, 100);
+            dirLight.castShadow = true;
+            dirLight.shadow.camera.left = -100;
+            dirLight.shadow.camera.right = 100;
+            dirLight.shadow.camera.top = 100;
+            dirLight.shadow.camera.bottom = -100;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            // Ground
+            const groundGeo = new THREE.PlaneGeometry(400, 400);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x3da02d, roughness: 0.8 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            createTurbine();
+            createDrone();
+
+            // Controls for Main Camera
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 80, 0);
+            controls.update();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('keydown', (e) => handleKey(e, true));
+            window.addEventListener('keyup', (e) => handleKey(e, false));
+            
+            // UI Listeners
+            inputFocal.addEventListener('input', updateUI);
+            inputDist.addEventListener('input', updateUI);
+            inputRPM.addEventListener('input', updateUI);
+            inputDia.addEventListener('input', updateUI);
+        }
+
+        function updateUI() {
+            valFocal.textContent = inputFocal.value + 'mm';
+            valDist.textContent = inputDist.value + 'm';
+            valRPM.textContent = inputRPM.value + ' RPM';
+            valDia.textContent = inputDia.value + 'm';
+            updateLabCalc();
+        }
+
+        function updateLabCalc() {
+            const simDist = parseFloat(inputDist.value);
+            const simDia = parseFloat(inputDia.value);
+            const simFocal = parseFloat(inputFocal.value);
+            const simRPM = parseFloat(inputRPM.value);
+
+            // 1. Ideal Distance for Framing
+            // Formula derived from: ImageSize_sim = ImageSize_lab
+            // d_lab = d_sim * (Dia_lab / Dia_sim) * (f_lab / f_sim)
+            let idealLabDist = simDist * (CONST_LAB_DIA / simDia) * (CONST_LAB_FOCAL / simFocal);
+
+            let actualLabDist = idealLabDist;
+            let isLimited = false;
+
+            // Check MFD Limit
+            if (idealLabDist < CONST_LAB_MFD) {
+                actualLabDist = CONST_LAB_MFD;
+                isLimited = true;
+            }
+
+            // 2. RPM Calculation
+            // Formula derived from: SensorVelocity_sim = SensorVelocity_lab
+            // w_lab = w_sim * (Dia_sim / Dia_lab) * (f_sim / f_lab) * (d_lab / d_sim)
+            // We use actualLabDist here to compensate if we are forced back by MFD.
+            // If actualLabDist > idealLabDist (forced back), the RPM will increase to compensate for slower sensor motion.
+            let labRPM = simRPM * (simDia / CONST_LAB_DIA) * (simFocal / CONST_LAB_FOCAL) * (actualLabDist / simDist);
+
+            // Display
+            labDistDisplay.textContent = actualLabDist.toFixed(2) + ' m';
+            labRpmDisplay.textContent = labRPM.toFixed(1) + ' RPM';
+
+            if (isLimited) {
+                labWarnDisplay.textContent = "⚠️ MFD Limited! (Ideal: " + idealLabDist.toFixed(2) + "m)";
+                labDistDisplay.style.color = "#ff5555";
+            } else {
+                labWarnDisplay.textContent = "";
+                labDistDisplay.style.color = "lime";
+            }
+        }
+
+        function handleKey(e, state) {
+            const key = e.key.toLowerCase();
+            if (keys.hasOwnProperty(key)) {
+                keys[key] = state;
+            }
+        }
+
+        function createTurbine() {
+            turbineGroup = new THREE.Group();
+
+            // 1. Tower
+            const towerHeight = 80;
+            const towerGeo = new THREE.CylinderGeometry(2, 4.5, towerHeight, 32);
+            const towerMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
+            const tower = new THREE.Mesh(towerGeo, towerMat);
+            tower.position.y = towerHeight / 2;
+            tower.castShadow = true;
+            turbineGroup.add(tower);
+
+            // 2. Nacelle
+            const nacelleGeo = new THREE.CylinderGeometry(2.5, 2.5, 14, 32);
+            const nacelleMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
+            const nacelle = new THREE.Mesh(nacelleGeo, nacelleMat);
+            nacelle.rotation.x = Math.PI / 2;
+            nacelle.position.set(0, towerHeight, 1);
+            nacelle.castShadow = true;
+            turbineGroup.add(nacelle);
+
+            const detailGeo = new THREE.BoxGeometry(3, 1, 6);
+            const detail = new THREE.Mesh(detailGeo, new THREE.MeshStandardMaterial({ color: 0xdddddd }));
+            detail.position.set(0, towerHeight + 2.5, -1);
+            turbineGroup.add(detail);
+
+            // 3. Hub
+            const hubGeo = new THREE.SphereGeometry(2.8, 32, 32);
+            const hub = new THREE.Mesh(hubGeo, nacelleMat);
+            hub.scale.z = 1.5;
+            hub.position.set(0, towerHeight, 6);
+            turbineGroup.add(hub);
+
+            // 4. Blades Group
+            bladesGroup = new THREE.Group();
+            bladesGroup.position.set(0, towerHeight, 6);
+
+            // --- Procedural Realistic Blade Generation ---
+            // Real dimensions for a ~90m rotor:
+            const bladeLength = 45;
+            const rootDiam = 1.5;  // Reduced from 2.2 for a tighter root
+            const maxChord = 4.2;  // Slightly narrower max width
+            const tipChord = 0.6;  // Narrow tip
+            
+            // Start with a unit box that we will sculpt
+            // width=1, depth=1, height=bladeLength
+            const bladeGeo = new THREE.BoxGeometry(1, bladeLength, 1, 3, 40, 2);
+            bladeGeo.translate(0, bladeLength / 2, 0);
+
+            const posAttribute = bladeGeo.attributes.position;
+            const vertex = new THREE.Vector3();
+
+            for (let i = 0; i < posAttribute.count; i++) {
+                vertex.fromBufferAttribute(posAttribute, i);
+                const t = vertex.y / bladeLength; // 0.0 (Root) to 1.0 (Tip)
+                
+                // --- 1. CHORD (Width) CALCULATION ---
+                // Real blades widen rapidly from root, then taper slowly.
+                let targetWidth;
+                if (t < 0.15) {
+                    // 0% to 15%: Transition from Root Cylinder to Max Chord
+                    const subT = t / 0.15;
+                    // Smooth sine ease-out for the shoulder
+                    targetWidth = THREE.MathUtils.lerp(rootDiam, maxChord, Math.sin(subT * Math.PI / 2));
+                } else {
+                    // 15% to 100%: Linear taper to tip
+                    const subT = (t - 0.15) / 0.85;
+                    targetWidth = THREE.MathUtils.lerp(maxChord, tipChord, subT);
+                }
+
+                // --- 2. THICKNESS CALCULATION ---
+                // Root is cylindrical (thickness = width), but it must flatten FAST.
+                // Previous version kept it too thick (40%). We reduce to ~22% for airfoil.
+                let targetThick;
+                if (t < 0.15) { // Transition zone matches width transition
+                     // Interpolate from Circular Root (thickness = diameter) 
+                     // to Airfoil Thickness (approx 22% of max chord)
+                     // This creates the "flattening" effect.
+                     const subT = t / 0.15;
+                     targetThick = THREE.MathUtils.lerp(rootDiam, maxChord * 0.22, subT);
+                } else {
+                    // Airfoil section thins out towards tip
+                    // Taper from 22% thickness down to ~10% thickness at tip
+                    const subT = (t - 0.15) / 0.85;
+                    targetThick = THREE.MathUtils.lerp(maxChord * 0.22, 0.15, subT);
+                }
+
+                // Apply Dimensions
+                vertex.x *= targetWidth;
+                vertex.z *= targetThick;
+
+                // --- 3. AERODYNAMIC TWIST ---
+                // Blades twist significantly. 
+                const twistAngle = THREE.MathUtils.degToRad(25) * (1 - Math.pow(t, 0.5)); 
+                
+                const cos = Math.cos(twistAngle);
+                const sin = Math.sin(twistAngle);
+                
+                // Rotate vertices around Y axis (Length axis)
+                const nx = vertex.x * cos - vertex.z * sin;
+                const nz = vertex.x * sin + vertex.z * cos;
+                vertex.x = nx;
+                vertex.z = nz;
+
+                // Optional: Offset X to align leading edge if desired
+                // vertex.x += targetWidth * 0.1;
+
+                posAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
+            }
+
+            bladeGeo.computeVertexNormals();
+
+            const bladeMat = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, 
+                roughness: 0.4,
+                metalness: 0.1 
+            });
+
+            for (let i = 0; i < 3; i++) {
+                const blade = new THREE.Mesh(bladeGeo, bladeMat);
+                blade.rotation.z = i * (Math.PI * 2 / 3);
+                
+                // Cone Angle
+                blade.rotation.x = THREE.MathUtils.degToRad(3); 
+                // Pitch Angle
+                blade.rotation.y = THREE.MathUtils.degToRad(5); 
+                
+                blade.castShadow = true;
+                bladesGroup.add(blade);
+            }
+
+            turbineGroup.add(bladesGroup);
+            scene.add(turbineGroup);
+        }
+
+        function createSpotlightTexture() {
+            const canvas = document.createElement('canvas');
+            const size = 1024;
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, size, size);
+
+            // 4:3 Aspect Ratio Box logic
+            const rectW = size * 0.8;
+            const rectH = rectW * (3/4);
+            const offsetX = (size - rectW) / 2;
+            const offsetY = (size - rectH) / 2;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(offsetX, offsetY, rectW, rectH);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+
+        function createDrone() {
+            droneGroup = new THREE.Group();
+
+            // Drone Body
+            const bodyGeo = new THREE.BoxGeometry(1, 0.3, 1);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            droneGroup.add(body);
+
+            // Arms
+            const armGeo = new THREE.BoxGeometry(2.5, 0.1, 0.2);
+            const armMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            const arm1 = new THREE.Mesh(armGeo, armMat);
+            const arm2 = new THREE.Mesh(armGeo, armMat);
+            arm1.rotation.y = Math.PI / 4;
+            arm2.rotation.y = -Math.PI / 4;
+            droneGroup.add(arm1);
+            droneGroup.add(arm2);
+
+            // Propellers
+            const propGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.05, 8);
+            const propMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+            const positions = [
+                { x: 0.8, z: 0.8 }, { x: -0.8, z: -0.8 },
+                { x: 0.8, z: -0.8 }, { x: -0.8, z: 0.8 }
+            ];
+
+            positions.forEach(pos => {
+                const prop = new THREE.Mesh(propGeo, propMat);
+                prop.position.set(pos.x, 0.2, pos.z);
+                droneGroup.add(prop);
+            });
+
+            // Camera Mesh
+            const camMeshGeo = new THREE.BoxGeometry(0.3, 0.3, 0.4);
+            const camMeshMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+            const droneCamMesh = new THREE.Mesh(camMeshGeo, camMeshMat);
+            droneCamMesh.position.set(0, -0.3, 0.3);
+            droneGroup.add(droneCamMesh);
+
+            // ---------------------------------------------------------
+            // ACTUAL CAMERA
+            // ---------------------------------------------------------
+            droneCamera = new THREE.PerspectiveCamera(50, 4/3, 0.1, 1000);
+            droneCamera.position.set(0, -0.3, 0.3);
+            droneCamera.rotation.y = Math.PI; 
+            droneGroup.add(droneCamera);
+
+            // ---------------------------------------------------------
+            // FOV VISUALIZATION SPOTLIGHT (Red Overlay)
+            // ---------------------------------------------------------
+            fovSpotlight = new THREE.SpotLight(0xff0000, 50, 200, 0.5, 0.5, 0); 
+            fovSpotlight.position.set(0, -0.3, 0.3);
+            fovSpotlight.map = createSpotlightTexture();
+
+            // Target Object for Spotlight
+            const targetObject = new THREE.Object3D();
+            targetObject.position.set(0, -0.3, 10); // Point "Backwards" (+Z) relative to drone
+            droneGroup.add(targetObject);
+            fovSpotlight.target = targetObject;
+            
+            droneGroup.add(fovSpotlight);
+
+            // Initial Position
+            droneGroup.position.set(0, 80, 35);
+            droneGroup.lookAt(0, 80, 3);
+
+            scene.add(droneGroup);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta(); 
+            const time = clock.getElapsedTime();
+            
+            const hubZ = 3;
+
+            // 1. Turbine Logic
+            if (bladesGroup) {
+                const rpm = parseFloat(inputRPM.value);
+                const speed = (rpm * Math.PI * 2) / 60;
+                bladesGroup.rotation.z -= speed * delta;
+
+                const diameter = parseFloat(inputDia.value);
+                const scale = diameter / 90;
+                bladesGroup.scale.set(scale, scale, scale);
+            }
+
+            // 2. Drone Controls
+            if (droneGroup) {
+                const moveSpeed = 15 * delta;
+                
+                if (keys.w) droneGroup.position.y += moveSpeed;
+                if (keys.s) droneGroup.position.y -= moveSpeed;
+                if (keys.a) droneGroup.position.x -= moveSpeed;
+                if (keys.d) droneGroup.position.x += moveSpeed;
+                
+                const dist = parseFloat(inputDist.value);
+                droneGroup.position.z = hubZ + dist;
+
+                droneGroup.lookAt(droneGroup.position.x, droneGroup.position.y, hubZ);
+            }
+
+            // 3. Drone Camera & Spotlight Physics
+            const focalLength = parseFloat(inputFocal.value);
+            // Vertical FOV
+            const vFovRad = 2 * Math.atan(24 / (2 * focalLength));
+            const vFovDeg = vFovRad * (180 / Math.PI);
+            
+            droneCamera.fov = vFovDeg;
+            droneCamera.updateProjectionMatrix();
+
+            // Update Spotlight Angle
+            if (fovSpotlight) {
+                const aspect = 4/3;
+                const tanHalfV = Math.tan(vFovRad / 2);
+                const tanHalfH = tanHalfV * aspect;
+                const tanHalfD = Math.sqrt(tanHalfV*tanHalfV + tanHalfH*tanHalfH);
+                const halfAngleD = Math.atan(tanHalfD);
+
+                fovSpotlight.angle = halfAngleD;
+            }
+
+            // 4. Render
+            renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+            renderer.setScissorTest(false);
+            renderer.render(scene, camera);
+
+            // 5. Render Drone View (PIP)
+            const width = 300;
+            const height = 225;
+            const x = 10;
+            const y = 10;
+
+            renderer.setScissor(x, y, width, height);
+            renderer.setViewport(x, y, width, height);
+            renderer.setScissorTest(true);
+            renderer.render(scene, droneCamera);
+            
+            renderer.setScissorTest(false);
+        }
+    </script>
+</body>
+</html>
