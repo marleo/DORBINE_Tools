@@ -8,7 +8,7 @@
         body { margin: 0; overflow: hidden; background-color: #87CEEB; font-family: sans-serif; }
         canvas { display: block; }
         
-        /* Main Info Panel (Top Left) - Kept for immediate visibility, but simplified */
+        /* Main Info Panel (Top Left) */
         #info {
             position: absolute;
             top: 10px;
@@ -20,7 +20,7 @@
             pointer-events: auto;
             user-select: none;
             width: 240px;
-            display: none; /* Hiding this by default now that we have the Help section, or user can close it */
+            display: none; 
         }
         .close-btn {
             float: right;
@@ -36,7 +36,7 @@
             bottom: 10px;
             left: 10px;
             width: 300px;
-            height: 225px;
+            height: 200px; /* Updated for 3:2 */
             border: 2px solid lime;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
             pointer-events: none;
@@ -46,7 +46,7 @@
         /* Exposure Timer Overlay */
         #cam-stat {
             position: absolute;
-            bottom: 210px; 
+            bottom: 190px; /* Adjusted for new height (200+10 - padding) */
             left: 15px;
             width: 290px;
             text-align: right;
@@ -87,7 +87,7 @@
             margin-top: 5px;
             padding-top: 5px;
             border-top: 1px dashed #444;
-            display: none; /* Hidden by default */
+            display: none; 
             margin-bottom: 10px;
         }
         .collapsible-section h5 { margin: 0 0 5px 0; color: #ffcc00; font-size: 11px; }
@@ -97,7 +97,6 @@
         .dbg-val, .calc-val { color: #00ffff; font-family: monospace; font-weight: bold; }
         .warning { color: #ff5555; font-weight: bold; font-size: 10px; display: block; text-align: right;}
         
-        /* Toggle Row Style */
         .toggle-row {
             margin-top: 8px; 
             padding-top: 8px; 
@@ -106,7 +105,7 @@
     </style>
 </head>
 <body>
-    <!-- Info Panel (Optional/Legacy) -->
+    <!-- Info Panel -->
     <div id="info" style="display: block;">
         <span class="close-btn" onclick="this.parentElement.style.display='none'">[X]</span>
         <h3>Drone Inspection Sim</h3>
@@ -195,8 +194,6 @@
             <p><b>Mouse Left:</b> Rotate View</p>
             <p><b>Mouse Right:</b> Pan View</p>
             <p><b>Mouse Scroll:</b> Zoom View</p>
-            <h5>ℹ️ Info</h5>
-            <p>This tool simulates motion blur conditions. "Pass Duration" is the theoretical time a blade point takes to traverse the sensor.</p>
         </div>
 
     </div>
@@ -218,8 +215,8 @@
         let scene, camera, droneCamera, fovSpotlight, renderer, controls;
         let turbineGroup, droneGroup, bladesGroup;
         let clock = new THREE.Clock();
-
-        // Detection Variables (Raycasting)
+        
+        //Raycaster
         const raycaster = new THREE.Raycaster();
         const testPoints = [
             new THREE.Vector2(-0.9, 0.9), 
@@ -228,11 +225,9 @@
             new THREE.Vector2(0.9, -0.9)  
         ];
 
-        // State Machine Variables
         let passState = 'IDLE'; 
         let passStartTime = 0;
         
-        // UI Elements
         const inputFocal = document.getElementById('input-focal');
         const valFocal = document.getElementById('val-focal');
         const inputDist = document.getElementById('input-dist');
@@ -254,13 +249,11 @@
         const valTipSpeed = document.getElementById('val-tipspeed');
         const valPassDuration = document.getElementById('val-pass');
         
-        // Debug Elements
         const dbgFrame = document.getElementById('dbg-frame');
         const dbgChord = document.getElementById('dbg-chord');
         const dbgSpeed = document.getElementById('dbg-speed');
         const dbgDist = document.getElementById('dbg-dist');
 
-        // Lab Calc Elements
         const labDistDisplay = document.getElementById('lab-dist');
         const labRpmDisplay = document.getElementById('lab-rpm');
         const labWarnDisplay = document.getElementById('lab-warn');
@@ -270,7 +263,6 @@
         const CONST_LAB_FOCAL = 200;
 
         const keys = { w: false, s: false, a: false, d: false };
-
         const rayGroup = new THREE.Group();
         const rayArrows = [];
 
@@ -279,7 +271,6 @@
         animate();
 
         function init() {
-            // Scene Setup
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
             scene.fog = new THREE.Fog(0x87CEEB, 50, 250);
@@ -328,16 +319,9 @@
             inputRPM.addEventListener('input', updateUI);
             inputDia.addEventListener('input', updateUI);
             
-            // Toggles
-            inputStats.addEventListener('change', () => {
-                debugPanel.style.display = inputStats.checked ? 'block' : 'none';
-            });
-            inputLab.addEventListener('change', () => {
-                labPanel.style.display = inputLab.checked ? 'block' : 'none';
-            });
-            inputHelp.addEventListener('change', () => {
-                helpPanel.style.display = inputHelp.checked ? 'block' : 'none';
-            });
+            inputStats.addEventListener('change', () => { debugPanel.style.display = inputStats.checked ? 'block' : 'none'; });
+            inputLab.addEventListener('change', () => { labPanel.style.display = inputLab.checked ? 'block' : 'none'; });
+            inputHelp.addEventListener('change', () => { helpPanel.style.display = inputHelp.checked ? 'block' : 'none'; });
         }
 
         function updateUI() {
@@ -394,8 +378,6 @@
         function createTurbine() {
             turbineGroup = new THREE.Group();
 
-            // ... (Turbine creation code unchanged) ...
-            // Tower
             const towerHeight = 80;
             const towerGeo = new THREE.CylinderGeometry(2, 4.5, towerHeight, 32);
             const towerMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
@@ -403,7 +385,7 @@
             tower.position.y = towerHeight / 2;
             tower.castShadow = true;
             turbineGroup.add(tower);
-            // Nacelle
+
             const nacelleGeo = new THREE.CylinderGeometry(2.5, 2.5, 14, 32);
             const nacelleMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
             const nacelle = new THREE.Mesh(nacelleGeo, nacelleMat);
@@ -411,19 +393,21 @@
             nacelle.position.set(0, towerHeight, 1);
             nacelle.castShadow = true;
             turbineGroup.add(nacelle);
+
             const detailGeo = new THREE.BoxGeometry(3, 1, 6);
             const detail = new THREE.Mesh(detailGeo, new THREE.MeshStandardMaterial({ color: 0xdddddd }));
             detail.position.set(0, towerHeight + 2.5, -1);
             turbineGroup.add(detail);
-            // Hub
+
             const hubGeo = new THREE.SphereGeometry(2.8, 32, 32);
             const hub = new THREE.Mesh(hubGeo, nacelleMat);
             hub.scale.z = 1.5;
             hub.position.set(0, towerHeight, 6);
             turbineGroup.add(hub);
-            // Blades
+
             bladesGroup = new THREE.Group();
             bladesGroup.position.set(0, towerHeight, 6);
+
             const bladeLength = 45;
             const rootDiam = 1.5;
             const maxChord = 4.2;
@@ -484,10 +468,14 @@
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, size, size);
+            
+            // 3:2 Aspect Ratio Calculation
+            // Diagonal matches diameter
             const rectW = size * 0.8;
-            const rectH = rectW * (3/4);
+            const rectH = rectW * (2/3);
             const offsetX = (size - rectW) / 2;
             const offsetY = (size - rectH) / 2;
+            
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(offsetX, offsetY, rectW, rectH);
             return new THREE.CanvasTexture(canvas);
@@ -495,8 +483,7 @@
 
         function createDrone() {
             droneGroup = new THREE.Group();
-            // ... (Drone creation code unchanged) ...
-            // Body
+
             const bodyGeo = new THREE.BoxGeometry(1, 0.3, 1);
             const bodyMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
             const body = new THREE.Mesh(bodyGeo, bodyMat);
@@ -522,10 +509,12 @@
             const droneCamMesh = new THREE.Mesh(camMeshGeo, camMeshMat);
             droneCamMesh.position.set(0, -0.3, 0.3);
             droneGroup.add(droneCamMesh);
-            droneCamera = new THREE.PerspectiveCamera(50, 4/3, 0.1, 1000);
+            
+            droneCamera = new THREE.PerspectiveCamera(50, 3/2, 0.1, 1000);
             droneCamera.position.set(0, -0.3, 0.3);
             droneCamera.rotation.y = Math.PI; 
             droneGroup.add(droneCamera);
+            
             fovSpotlight = new THREE.SpotLight(0xff0000, 50, 200, 0.5, 0.5, 0); 
             fovSpotlight.position.set(0, -0.3, 0.3);
             fovSpotlight.map = createSpotlightTexture();
@@ -554,7 +543,6 @@
             const focal = parseFloat(inputFocal.value);
             const dist = parseFloat(inputDist.value);
             
-            // 1. Tangential Velocity (m/s)
             const dx = droneGroup.position.x;
             const dy = droneGroup.position.y - 80;
             const r = Math.sqrt(dx*dx + dy*dy);
@@ -563,7 +551,6 @@
             const angularVel = (rpm * Math.PI * 2) / 60;
             const velocity = angularVel * r;
 
-            // 2. Blade Chord (Width) at this radius (m)
             const bladeLength = 45;
             const t_pct = Math.min(r, bladeLength) / bladeLength;
             const rootDiam = 1.5;
@@ -578,11 +565,11 @@
                 bladeWidth = THREE.MathUtils.lerp(maxChord, tipChord, subT);
             }
 
-            // 3. Frame Traversal Length (L) in Meters
+            // 3:2 Aspect Ratio Logic
             const theta = Math.atan2(dy, dx);
             const vFovRad = 2 * Math.atan(24 / (2 * focal));
             const h_m = 2 * dist * Math.tan(vFovRad / 2);
-            const w_m = h_m * (4/3);
+            const w_m = h_m * (3/2); 
             
             const absCos = Math.abs(Math.cos(theta));
             const absSin = Math.abs(Math.sin(theta));
@@ -593,10 +580,8 @@
             const halfLen = Math.min(s_x, s_y);
             const framePathLength = halfLen * 2;
 
-            // 4. Total Distance
             const totalDist = framePathLength + bladeWidth;
 
-            // 5. Duration
             const durationSec = totalDist / velocity;
             const durationMs = durationSec * 1000;
 
@@ -615,7 +600,6 @@
             const showRays = inputRays.checked;
             rayGroup.visible = showRays;
 
-            // Visual Rays
             if (showRays && rayArrows.length === 0) {
                 for(let i=0; i<testPoints.length; i++) {
                     const arrow = new THREE.ArrowHelper(
@@ -627,7 +611,6 @@
                 }
             }
 
-            // Logic for Colors (State Machine Visualization)
             let currentFrameVisible = false;
             for (let i = 0; i < testPoints.length; i++) {
                 raycaster.setFromCamera(testPoints[i], droneCamera);
@@ -641,11 +624,9 @@
                 }
             }
 
-            // --- CALCULATION UPDATE ---
             const data = calculateTheoreticalDuration();
-            valPassDuration.textContent = data.t;
+            valPassDuration.textContent = data.t + " ms";
             
-            // Debug Update
             if (inputStats.checked) {
                 dbgFrame.textContent = data.fw;
                 dbgChord.textContent = data.ch;
@@ -653,7 +634,6 @@
                 dbgDist.textContent = data.pd;
             }
             
-            // Colors
             if (currentFrameVisible) {
                  valPassDuration.style.color = "cyan";
                  document.getElementById('cam-stat').style.borderColor = "cyan";
@@ -668,7 +648,6 @@
             const delta = clock.getDelta(); 
             const hubZ = 3;
 
-            // Turbine
             if (bladesGroup) {
                 const rpm = parseFloat(inputRPM.value);
                 const speed = (rpm * Math.PI * 2) / 60;
@@ -677,7 +656,6 @@
                 const scale = diameter / 90;
                 bladesGroup.scale.set(scale, scale, scale);
             }
-            // Drone
             if (droneGroup) {
                 const moveSpeed = 15 * delta;
                 if (keys.w) droneGroup.position.y += moveSpeed;
@@ -688,19 +666,17 @@
                 droneGroup.position.z = hubZ + dist;
                 droneGroup.lookAt(droneGroup.position.x, droneGroup.position.y, hubZ);
             }
-            // Physics
+            
             const focalLength = parseFloat(inputFocal.value);
             const vFovRad = 2 * Math.atan(24 / (2 * focalLength));
             const vFovDeg = vFovRad * (180 / Math.PI);
             droneCamera.fov = vFovDeg;
             droneCamera.updateProjectionMatrix();
 
-            // Check
             checkBladeVisibility();
 
-            // Spotlight
             if (fovSpotlight) {
-                const aspect = 4/3;
+                const aspect = 3/2;
                 const tanHalfV = Math.tan(vFovRad / 2);
                 const tanHalfH = tanHalfV * aspect;
                 const tanHalfD = Math.sqrt(tanHalfV*tanHalfV + tanHalfH*tanHalfH);
@@ -708,12 +684,12 @@
                 fovSpotlight.angle = halfAngleD;
             }
 
-            // Render
             renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
             renderer.setScissorTest(false);
             renderer.render(scene, camera);
-            // PIP
-            const width = 300; const height = 225; const x = 10; const y = 10;
+            
+            //PIP
+            const width = 300; const height = 200; const x = 10; const y = 10;
             renderer.setScissor(x, y, width, height);
             renderer.setViewport(x, y, width, height);
             renderer.setScissorTest(true);
