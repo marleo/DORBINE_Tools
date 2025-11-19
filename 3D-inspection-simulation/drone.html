@@ -121,6 +121,10 @@
         <div class="control-group">
             <label>Turbine RPM: <span id="val-rpm" class="value-display">10 RPM</span></label>
             <input type="range" id="input-rpm" min="0" max="30" value="10">
+            <!-- Added Tip Speed Display -->
+            <div style="text-align: right; font-size: 11px; color: #aaa; margin-top: 2px;">
+                Tip Speed: <span id="val-tipspeed" style="color: cyan; font-weight: bold;">--</span>
+            </div>
         </div>
 
         <div class="control-group">
@@ -169,6 +173,9 @@
         const valRPM = document.getElementById('val-rpm');
         const inputDia = document.getElementById('input-dia');
         const valDia = document.getElementById('val-dia');
+        
+        // New Element
+        const valTipSpeed = document.getElementById('val-tipspeed');
         
         // Lab Calc Elements
         const labDistDisplay = document.getElementById('lab-dist');
@@ -258,6 +265,17 @@
             valDist.textContent = inputDist.value + 'm';
             valRPM.textContent = inputRPM.value + ' RPM';
             valDia.textContent = inputDia.value + 'm';
+            
+            // Calculate Tip Speed
+            // v = (RPM * PI * Diameter) / 60  (m/s)
+            // km/h = m/s * 3.6
+            const rpm = parseFloat(inputRPM.value);
+            const dia = parseFloat(inputDia.value);
+            const speedMs = (rpm * Math.PI * dia) / 60;
+            const speedKmh = speedMs * 3.6;
+            
+            valTipSpeed.textContent = `${speedKmh.toFixed(1)} km/h`;
+
             updateLabCalc();
         }
 
