@@ -1,13 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Drone Turbine Inspection 3D</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #87CEEB; font-family: sans-serif; }
-        canvas { display: block; }
-        
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #87CEEB;
+            font-family: sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
         /* Main Info Panel (Top Left) */
         #info {
             position: absolute;
@@ -20,8 +29,9 @@
             pointer-events: auto;
             user-select: none;
             width: 240px;
-            display: none; 
+            display: none;
         }
+
         .close-btn {
             float: right;
             cursor: pointer;
@@ -36,17 +46,19 @@
             bottom: 10px;
             left: 10px;
             width: 300px;
-            height: 200px; /* Updated for 3:2 */
+            height: 200px;
+            /* Updated for 3:2 */
             border: 2px solid lime;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
             pointer-events: none;
             z-index: 10;
         }
-        
+
         /* Exposure Timer Overlay */
         #cam-stat {
             position: absolute;
-            bottom: 190px; /* Adjusted for new height (200+10 - padding) */
+            bottom: 190px;
+            /* Adjusted for new height (200+10 - padding) */
             left: 15px;
             width: 290px;
             text-align: right;
@@ -74,12 +86,66 @@
             max-height: 90vh;
             overflow-y: auto;
         }
-        #cam-controls h4 { margin: 0 0 10px 0; color: lime; border-bottom: 1px solid #555; padding-bottom: 5px; }
-        .control-group { margin-bottom: 10px; }
-        .control-group label { display: block; font-size: 12px; margin-bottom: 5px; color: #aaa; }
-        .control-group input { width: 100%; cursor: pointer; }
-        .value-display { float: right; color: white; font-weight: bold; font-size: 12px; }
-        
+
+        #cam-controls h4 {
+            margin: 0 0 10px 0;
+            color: lime;
+            border-bottom: 1px solid #555;
+            padding-bottom: 5px;
+        }
+
+        .control-group {
+            margin-bottom: 10px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+            color: #aaa;
+        }
+
+        .control-group input {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .value-display {
+            float: right;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        /* Drone Selector */
+        .drone-selector {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+
+        .drone-btn {
+            background: #333;
+            border: 1px solid #555;
+            color: #aaa;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            flex: 1;
+            margin: 0 2px;
+            text-align: center;
+        }
+
+        .drone-btn.active {
+            background: lime;
+            color: black;
+            font-weight: bold;
+            border-color: lime;
+        }
+
         /* Collapsible Section Styles (Shared) */
         .collapsible-section {
             font-size: 10px;
@@ -87,23 +153,56 @@
             margin-top: 5px;
             padding-top: 5px;
             border-top: 1px dashed #444;
-            display: none; 
+            display: none;
             margin-bottom: 10px;
         }
-        .collapsible-section h5 { margin: 0 0 5px 0; color: #ffcc00; font-size: 11px; }
-        .collapsible-section p { margin: 0 0 5px 0; line-height: 1.4; }
-        
-        .dbg-row, .calc-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
-        .dbg-val, .calc-val { color: #00ffff; font-family: monospace; font-weight: bold; }
-        .warning { color: #ff5555; font-weight: bold; font-size: 10px; display: block; text-align: right;}
-        
+
+        .collapsible-section h5 {
+            margin: 0 0 5px 0;
+            color: #ffcc00;
+            font-size: 11px;
+        }
+
+        .collapsible-section p {
+            margin: 0 0 5px 0;
+            line-height: 1.4;
+        }
+
+        .dbg-row,
+        .calc-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        .dbg-val,
+        .calc-val {
+            color: #00ffff;
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .warning {
+            color: #ff5555;
+            font-weight: bold;
+            font-size: 10px;
+            display: block;
+            text-align: right;
+        }
+
         .toggle-row {
-            margin-top: 8px; 
-            padding-top: 8px; 
+            margin-top: 8px;
+            padding-top: 8px;
             border-top: 1px solid #444;
+        }
+
+        /* Helper class to hide elements */
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
+
 <body>
     <!-- Info Panel -->
     <div id="info" style="display: block;">
@@ -119,7 +218,13 @@
     <!-- Camera Settings -->
     <div id="cam-controls">
         <h4>Settings</h4>
-        
+
+        <div class="drone-selector">
+            <div class="drone-btn active" onclick="selectDrone(0)">Drone 1</div>
+            <div class="drone-btn" onclick="selectDrone(1)">Drone 2</div>
+            <div class="drone-btn" onclick="selectDrone(2)">Drone 3</div>
+        </div>
+
         <div class="control-group">
             <label>Focal Length: <span id="val-focal" class="value-display">35mm</span></label>
             <input type="range" id="input-focal" min="14" max="200" value="35">
@@ -127,7 +232,7 @@
 
         <div class="control-group">
             <label>Drone Distance: <span id="val-dist" class="value-display">35m</span></label>
-            <input type="range" id="input-dist" min="10" max="150" value="35">
+            <input type="range" id="input-dist" min="10" max="200" value="35">
         </div>
 
         <div class="control-group">
@@ -144,13 +249,13 @@
         </div>
 
         <!-- Ray Toggle -->
-        <div class="control-group toggle-row">
+        <div class="control-group toggle-row" id="grp-rays">
             <label style="display: inline-block; width: auto;">Show Detection Rays</label>
             <input type="checkbox" id="input-rays" style="width: auto; float: right; cursor: pointer;">
         </div>
-        
+
         <!-- Lab Setup Toggle -->
-        <div class="control-group">
+        <div class="control-group" id="grp-lab">
             <label style="display: inline-block; width: auto;">Show Lab Setup</label>
             <input type="checkbox" id="input-lab" style="width: auto; float: right; cursor: pointer;">
         </div>
@@ -167,9 +272,9 @@
                 <span id="lab-rpm" class="calc-val">--</span>
             </div>
         </div>
-        
+
         <!-- Stats Toggle -->
-        <div class="control-group">
+        <div class="control-group" id="grp-stats">
             <label style="display: inline-block; width: auto;">Show Calculation Details</label>
             <input type="checkbox" id="input-stats" style="width: auto; float: right; cursor: pointer;">
         </div>
@@ -189,8 +294,9 @@
 
         <div id="help-details" class="collapsible-section">
             <h5>🎮 Controls</h5>
-            <p><b>W / S:</b> Move Drone Up/Down</p>
-            <p><b>A / D:</b> Move Drone Left/Right</p>
+            <p><b>Drone 1:</b> WASD to Move</p>
+            <p><b>Drone 2:</b> A/D to Move Left/Right</p>
+            <p><b>Drone 3:</b> Fixed Center</p>
             <p><b>Mouse Left:</b> Rotate View</p>
             <p><b>Mouse Right:</b> Pan View</p>
             <p><b>Mouse Scroll:</b> Zoom View</p>
@@ -212,22 +318,23 @@
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        let scene, camera, droneCamera, fovSpotlight, renderer, controls;
-        let turbineGroup, droneGroup, bladesGroup;
+        let scene, camera, renderer, controls;
+        let turbineGroup, bladesGroup;
         let clock = new THREE.Clock();
-        
+
+        // Drones
+        let drones = [];
+        let activeDroneIndex = 0;
+
         //Raycaster
         const raycaster = new THREE.Raycaster();
         const testPoints = [
-            new THREE.Vector2(-0.9, 0.9), 
-            new THREE.Vector2(0.9, 0.9),  
+            new THREE.Vector2(-0.9, 0.9),
+            new THREE.Vector2(0.9, 0.9),
             new THREE.Vector2(-0.9, -0.9),
-            new THREE.Vector2(0.9, -0.9)  
+            new THREE.Vector2(0.9, -0.9)
         ];
 
-        let passState = 'IDLE'; 
-        let passStartTime = 0;
-        
         const inputFocal = document.getElementById('input-focal');
         const valFocal = document.getElementById('val-focal');
         const inputDist = document.getElementById('input-dist');
@@ -236,19 +343,24 @@
         const valRPM = document.getElementById('val-rpm');
         const inputDia = document.getElementById('input-dia');
         const valDia = document.getElementById('val-dia');
-        
+
         const inputRays = document.getElementById('input-rays');
         const inputStats = document.getElementById('input-stats');
         const inputLab = document.getElementById('input-lab');
         const inputHelp = document.getElementById('input-help');
-        
+
+        const grpRays = document.getElementById('grp-rays');
+        const grpStats = document.getElementById('grp-stats');
+        const grpLab = document.getElementById('grp-lab');
+        const camStat = document.getElementById('cam-stat');
+
         const debugPanel = document.getElementById('debug-details');
         const labPanel = document.getElementById('lab-calc');
         const helpPanel = document.getElementById('help-details');
 
         const valTipSpeed = document.getElementById('val-tipspeed');
         const valPassDuration = document.getElementById('val-pass');
-        
+
         const dbgFrame = document.getElementById('dbg-frame');
         const dbgChord = document.getElementById('dbg-chord');
         const dbgSpeed = document.getElementById('dbg-speed');
@@ -266,6 +378,50 @@
         const rayGroup = new THREE.Group();
         const rayArrows = [];
 
+        // Expose selectDrone to global scope
+        window.selectDrone = function (index) {
+            activeDroneIndex = index;
+            const btns = document.querySelectorAll('.drone-btn');
+            btns.forEach((b, i) => {
+                if (i === index) b.classList.add('active');
+                else b.classList.remove('active');
+            });
+
+            // Update UI with selected drone's values
+            const drone = drones[activeDroneIndex];
+            if (drone) {
+                inputFocal.value = drone.params.focal;
+                inputDist.value = drone.params.distance;
+                updateUI();
+
+                // Visibility Logic
+                drones.forEach((d, i) => {
+                    if (d.spotlight) d.spotlight.visible = (i === index);
+                });
+
+                // UI Element Visibility
+                if (index === 0) {
+                    // Drone 1
+                    grpRays.classList.remove('hidden');
+                    grpStats.classList.remove('hidden');
+                    grpLab.classList.remove('hidden');
+                    camStat.style.display = 'block';
+                } else {
+                    // Drone 2 & 3
+                    grpRays.classList.add('hidden');
+                    grpStats.classList.add('hidden');
+                    grpLab.classList.add('hidden');
+                    camStat.style.display = 'none';
+
+                    // Also hide panels if they were open
+                    debugPanel.style.display = 'none';
+                    labPanel.style.display = 'none';
+                    inputStats.checked = false;
+                    inputLab.checked = false;
+                }
+            }
+        };
+
         init();
         updateLabCalc();
         animate();
@@ -273,9 +429,10 @@
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
-            scene.fog = new THREE.Fog(0x87CEEB, 50, 250);
+            // Restored fog: 50-250
+            scene.fog = new THREE.Fog(0x87CEEB, 100, 300);
 
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
             camera.position.set(80, 80, 100);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -284,7 +441,7 @@
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
             document.body.appendChild(renderer.domElement);
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); 
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
 
             const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -304,7 +461,25 @@
             scene.add(rayGroup);
 
             createTurbine();
-            createDrone();
+
+            // Initialize 3 Drones
+            // Drone 1: Free Move
+            drones.push(createDroneObject('free', { x: -40, y: 80, z: 50 }));
+            // Drone 2: Top Down
+            // Initial Pos: Above hub. 
+            drones.push(createDroneObject('top-down', { x: 0, y: 60, z: 5 }));
+            // Drone 3: Hub Center
+            // Initial Dist: 200m
+            drones.push(createDroneObject('hub-centered', { x: 0, y: 80, z: 100 }));
+
+            drones[0].params.focal = 200;
+            drones[0].params.distance = 50;
+
+            drones[1].params.focal = 26;
+            drones[1].params.distance = 60;
+
+            drones[2].params.distance = 100;
+            drones[2].params.focal = 24;
 
             controls = new OrbitControls(camera, renderer.domElement);
             controls.target.set(0, 80, 0);
@@ -313,15 +488,28 @@
             window.addEventListener('resize', onWindowResize);
             window.addEventListener('keydown', (e) => handleKey(e, true));
             window.addEventListener('keyup', (e) => handleKey(e, false));
-            
-            inputFocal.addEventListener('input', updateUI);
-            inputDist.addEventListener('input', updateUI);
+
+            inputFocal.addEventListener('input', (e) => {
+                if (drones[activeDroneIndex]) {
+                    drones[activeDroneIndex].params.focal = parseFloat(e.target.value);
+                    updateUI();
+                }
+            });
+            inputDist.addEventListener('input', (e) => {
+                if (drones[activeDroneIndex]) {
+                    drones[activeDroneIndex].params.distance = parseFloat(e.target.value);
+                    updateUI();
+                }
+            });
             inputRPM.addEventListener('input', updateUI);
             inputDia.addEventListener('input', updateUI);
-            
+
             inputStats.addEventListener('change', () => { debugPanel.style.display = inputStats.checked ? 'block' : 'none'; });
             inputLab.addEventListener('change', () => { labPanel.style.display = inputLab.checked ? 'block' : 'none'; });
             inputHelp.addEventListener('change', () => { helpPanel.style.display = inputHelp.checked ? 'block' : 'none'; });
+
+            // Initialize UI
+            setTimeout(() => selectDrone(0), 0);
         }
 
         function updateUI() {
@@ -329,7 +517,7 @@
             valDist.textContent = inputDist.value + 'm';
             valRPM.textContent = inputRPM.value + ' RPM';
             valDia.textContent = inputDia.value + 'm';
-            
+
             const rpm = parseFloat(inputRPM.value);
             const dia = parseFloat(inputDia.value);
             const speedMs = (rpm * Math.PI * dia) / 60;
@@ -418,7 +606,7 @@
             const vertex = new THREE.Vector3();
             for (let i = 0; i < posAttribute.count; i++) {
                 vertex.fromBufferAttribute(posAttribute, i);
-                const t = vertex.y / bladeLength; 
+                const t = vertex.y / bladeLength;
                 let targetWidth;
                 if (t < 0.15) {
                     const subT = t / 0.15;
@@ -429,15 +617,15 @@
                 }
                 let targetThick;
                 if (t < 0.15) {
-                     const subT = t / 0.15;
-                     targetThick = THREE.MathUtils.lerp(rootDiam, maxChord * 0.22, subT);
+                    const subT = t / 0.15;
+                    targetThick = THREE.MathUtils.lerp(rootDiam, maxChord * 0.22, subT);
                 } else {
                     const subT = (t - 0.15) / 0.85;
                     targetThick = THREE.MathUtils.lerp(maxChord * 0.22, 0.15, subT);
                 }
                 vertex.x *= targetWidth;
                 vertex.z *= targetThick;
-                const twistAngle = THREE.MathUtils.degToRad(25) * (1 - Math.pow(t, 0.5)); 
+                const twistAngle = THREE.MathUtils.degToRad(25) * (1 - Math.pow(t, 0.5));
                 const cos = Math.cos(twistAngle);
                 const sin = Math.sin(twistAngle);
                 const nx = vertex.x * cos - vertex.z * sin;
@@ -451,8 +639,9 @@
             for (let i = 0; i < 3; i++) {
                 const blade = new THREE.Mesh(bladeGeo, bladeMat);
                 blade.rotation.z = i * (Math.PI * 2 / 3);
-                blade.rotation.x = THREE.MathUtils.degToRad(3); 
-                blade.rotation.y = THREE.MathUtils.degToRad(5); 
+                // Removed blade tilt rotations to fix alignment
+                // blade.rotation.x = THREE.MathUtils.degToRad(3); 
+                // blade.rotation.y = THREE.MathUtils.degToRad(5); 
                 blade.castShadow = true;
                 bladesGroup.add(blade);
             }
@@ -468,64 +657,106 @@
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, size, size);
-            
+
             // 3:2 Aspect Ratio Calculation
-            // Diagonal matches diameter
             const rectW = size * 0.8;
-            const rectH = rectW * (2/3);
+            const rectH = rectW * (2 / 3);
             const offsetX = (size - rectW) / 2;
             const offsetY = (size - rectH) / 2;
-            
+
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(offsetX, offsetY, rectW, rectH);
             return new THREE.CanvasTexture(canvas);
         }
 
-        function createDrone() {
-            droneGroup = new THREE.Group();
+        function createDroneObject(type, initialPos) {
+            const group = new THREE.Group();
 
             const bodyGeo = new THREE.BoxGeometry(1, 0.3, 1);
             const bodyMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
             const body = new THREE.Mesh(bodyGeo, bodyMat);
-            droneGroup.add(body);
+            group.add(body);
             const armGeo = new THREE.BoxGeometry(2.5, 0.1, 0.2);
             const armMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
             const arm1 = new THREE.Mesh(armGeo, armMat);
             const arm2 = new THREE.Mesh(armGeo, armMat);
             arm1.rotation.y = Math.PI / 4;
             arm2.rotation.y = -Math.PI / 4;
-            droneGroup.add(arm1);
-            droneGroup.add(arm2);
+            group.add(arm1);
+            group.add(arm2);
             const propGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.05, 8);
             const propMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
             const positions = [{ x: 0.8, z: 0.8 }, { x: -0.8, z: -0.8 }, { x: 0.8, z: -0.8 }, { x: -0.8, z: 0.8 }];
             positions.forEach(pos => {
                 const prop = new THREE.Mesh(propGeo, propMat);
                 prop.position.set(pos.x, 0.2, pos.z);
-                droneGroup.add(prop);
+                group.add(prop);
             });
             const camMeshGeo = new THREE.BoxGeometry(0.3, 0.3, 0.4);
             const camMeshMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
             const droneCamMesh = new THREE.Mesh(camMeshGeo, camMeshMat);
             droneCamMesh.position.set(0, -0.3, 0.3);
-            droneGroup.add(droneCamMesh);
-            
-            droneCamera = new THREE.PerspectiveCamera(50, 3/2, 0.1, 1000);
-            droneCamera.position.set(0, -0.3, 0.3);
-            droneCamera.rotation.y = Math.PI; 
-            droneGroup.add(droneCamera);
-            
-            fovSpotlight = new THREE.SpotLight(0xff0000, 50, 200, 0.5, 0.5, 0); 
-            fovSpotlight.position.set(0, -0.3, 0.3);
+            group.add(droneCamMesh);
+
+            // Camera & Spotlight Setup
+            const droneCamera = new THREE.PerspectiveCamera(50, 3 / 2, 0.1, 1000);
+            const fovSpotlight = new THREE.SpotLight(0xff0000, 50, 200, 0.5, 0.5, 0);
             fovSpotlight.map = createSpotlightTexture();
             const targetObject = new THREE.Object3D();
-            targetObject.position.set(0, -0.3, 10);
-            droneGroup.add(targetObject);
-            fovSpotlight.target = targetObject;
-            droneGroup.add(fovSpotlight);
-            droneGroup.position.set(0, 80, 35);
-            droneGroup.lookAt(0, 80, 3);
-            scene.add(droneGroup);
+
+            if (type === 'top-down') {
+                // Drone body is flat (default), but camera looks down (-Y)
+                // Camera
+                droneCamera.position.set(0, -0.3, 0);
+                droneCamera.rotation.x = -Math.PI / 2; // Look down
+
+                // Spotlight
+                fovSpotlight.position.set(0, -0.3, 0);
+                targetObject.position.set(0, -10, 0); // Target below
+
+                // Add to group
+                group.add(droneCamera);
+                group.add(targetObject);
+                fovSpotlight.target = targetObject;
+                group.add(fovSpotlight);
+
+            } else {
+                // Standard Front/Back facing (Drone 1 & 3)
+                // Camera
+                droneCamera.position.set(0, -0.3, 0.3);
+                droneCamera.rotation.y = Math.PI; // Look back/forward depending on drone orientation
+
+                // Spotlight
+                fovSpotlight.position.set(0, -0.3, 0.3);
+                targetObject.position.set(0, -0.3, 10); // Target forward
+
+                // Add to group
+                group.add(droneCamera);
+                group.add(targetObject);
+                fovSpotlight.target = targetObject;
+                group.add(fovSpotlight);
+            }
+
+            group.position.set(initialPos.x, initialPos.y, initialPos.z);
+
+            // Initial Orientation
+            if (type === 'free' || type === 'hub-centered') {
+                group.lookAt(initialPos.x, initialPos.y, 3); // Look at hub Z=3
+            }
+            // Top-down drone body stays default orientation (flat)
+
+            scene.add(group);
+
+            return {
+                group: group,
+                camera: droneCamera,
+                spotlight: fovSpotlight,
+                type: type,
+                params: {
+                    focal: 35,
+                    distance: 35
+                }
+            };
         }
 
         function onWindowResize() {
@@ -534,20 +765,20 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function calculateTheoreticalDuration() {
-            if (!droneGroup) return { t: "--", fw: "--", ch: "--", sp: "--", pd: "--" };
+        function calculateTheoreticalDuration(drone) {
+            if (!drone) return { t: "--", fw: "--", ch: "--", sp: "--", pd: "--" };
 
             const rpm = parseFloat(inputRPM.value);
             if (rpm === 0) return { t: "∞", fw: "-", ch: "-", sp: "-", pd: "-" };
 
-            const focal = parseFloat(inputFocal.value);
-            const dist = parseFloat(inputDist.value);
-            
-            const dx = droneGroup.position.x;
-            const dy = droneGroup.position.y - 80;
-            const r = Math.sqrt(dx*dx + dy*dy);
+            const focal = drone.params.focal;
+            const dist = drone.params.distance;
+
+            const dx = drone.group.position.x;
+            const dy = drone.group.position.y - 80;
+            const r = Math.sqrt(dx * dx + dy * dy);
             if (r < 1) return { t: "> 1000", fw: "-", ch: "-", sp: "0", pd: "-" };
-            
+
             const angularVel = (rpm * Math.PI * 2) / 60;
             const velocity = angularVel * r;
 
@@ -569,14 +800,14 @@
             const theta = Math.atan2(dy, dx);
             const vFovRad = 2 * Math.atan(24 / (2 * focal));
             const h_m = 2 * dist * Math.tan(vFovRad / 2);
-            const w_m = h_m * (3/2); 
-            
+            const w_m = h_m * (3 / 2);
+
             const absCos = Math.abs(Math.cos(theta));
             const absSin = Math.abs(Math.sin(theta));
-            
-            const s_y = (absCos > 0.001) ? (h_m/2) / absCos : 99999;
-            const s_x = (absSin > 0.001) ? (w_m/2) / absSin : 99999;
-            
+
+            const s_y = (absCos > 0.001) ? (h_m / 2) / absCos : 99999;
+            const s_x = (absSin > 0.001) ? (w_m / 2) / absSin : 99999;
+
             const halfLen = Math.min(s_x, s_y);
             const framePathLength = halfLen * 2;
 
@@ -594,16 +825,17 @@
             };
         }
 
-        function checkBladeVisibility() {
-            if (!bladesGroup || !droneGroup) return;
-            
-            const showRays = inputRays.checked;
+        function checkBladeVisibility(drone) {
+            if (!bladesGroup || !drone) return;
+
+            // Only show rays for Drone 1
+            const showRays = (activeDroneIndex === 0) && inputRays.checked;
             rayGroup.visible = showRays;
 
             if (showRays && rayArrows.length === 0) {
-                for(let i=0; i<testPoints.length; i++) {
+                for (let i = 0; i < testPoints.length; i++) {
                     const arrow = new THREE.ArrowHelper(
-                        new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,0), 
+                        new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 0),
                         50, 0xffff00, 1, 0.5
                     );
                     rayArrows.push(arrow);
@@ -613,7 +845,7 @@
 
             let currentFrameVisible = false;
             for (let i = 0; i < testPoints.length; i++) {
-                raycaster.setFromCamera(testPoints[i], droneCamera);
+                raycaster.setFromCamera(testPoints[i], drone.camera);
                 const intersects = raycaster.intersectObjects(bladesGroup.children);
                 if (intersects.length > 0) currentFrameVisible = true;
 
@@ -624,30 +856,32 @@
                 }
             }
 
-            const data = calculateTheoreticalDuration();
+            const data = calculateTheoreticalDuration(drone);
             valPassDuration.textContent = data.t + " ms";
-            
+
             if (inputStats.checked) {
                 dbgFrame.textContent = data.fw;
                 dbgChord.textContent = data.ch;
                 dbgSpeed.textContent = data.sp;
                 dbgDist.textContent = data.pd;
             }
-            
+
             if (currentFrameVisible) {
-                 valPassDuration.style.color = "cyan";
-                 document.getElementById('cam-stat').style.borderColor = "cyan";
+                valPassDuration.style.color = "cyan";
+                document.getElementById('cam-stat').style.borderColor = "cyan";
             } else {
-                 valPassDuration.style.color = "#ffff00";
-                 document.getElementById('cam-stat').style.borderColor = "transparent";
+                valPassDuration.style.color = "#ffff00";
+                document.getElementById('cam-stat').style.borderColor = "transparent";
             }
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            const delta = clock.getDelta(); 
+            const delta = clock.getDelta();
             const hubZ = 3;
+            const hubHeight = 80;
 
+            // Turbine Animation
             if (bladesGroup) {
                 const rpm = parseFloat(inputRPM.value);
                 const speed = (rpm * Math.PI * 2) / 60;
@@ -656,46 +890,75 @@
                 const scale = diameter / 90;
                 bladesGroup.scale.set(scale, scale, scale);
             }
-            if (droneGroup) {
+
+            // Drone Logic
+            drones.forEach((drone, index) => {
+                const isActive = (index === activeDroneIndex);
                 const moveSpeed = 15 * delta;
-                if (keys.w) droneGroup.position.y += moveSpeed;
-                if (keys.s) droneGroup.position.y -= moveSpeed;
-                if (keys.a) droneGroup.position.x -= moveSpeed;
-                if (keys.d) droneGroup.position.x += moveSpeed;
-                const dist = parseFloat(inputDist.value);
-                droneGroup.position.z = hubZ + dist;
-                droneGroup.lookAt(droneGroup.position.x, droneGroup.position.y, hubZ);
-            }
-            
-            const focalLength = parseFloat(inputFocal.value);
-            const vFovRad = 2 * Math.atan(24 / (2 * focalLength));
-            const vFovDeg = vFovRad * (180 / Math.PI);
-            droneCamera.fov = vFovDeg;
-            droneCamera.updateProjectionMatrix();
 
-            checkBladeVisibility();
+                // Movement Logic
+                if (isActive) {
+                    if (drone.type === 'free') {
+                        if (keys.w) drone.group.position.y += moveSpeed;
+                        if (keys.s) drone.group.position.y -= moveSpeed;
+                        if (keys.a) drone.group.position.x -= moveSpeed;
+                        if (keys.d) drone.group.position.x += moveSpeed;
 
-            if (fovSpotlight) {
-                const aspect = 3/2;
-                const tanHalfV = Math.tan(vFovRad / 2);
-                const tanHalfH = tanHalfV * aspect;
-                const tanHalfD = Math.sqrt(tanHalfV*tanHalfV + tanHalfH*tanHalfH);
-                const halfAngleD = Math.atan(tanHalfD);
-                fovSpotlight.angle = halfAngleD;
-            }
+                        const dist = drone.params.distance;
+                        drone.group.position.z = hubZ + dist;
+                        drone.group.lookAt(drone.group.position.x, drone.group.position.y, hubZ);
+                    }
+                    else if (drone.type === 'top-down') {
+                        if (keys.a) drone.group.position.x -= moveSpeed;
+                        if (keys.d) drone.group.position.x += moveSpeed;
+
+                        const dist = drone.params.distance;
+                        // For top-down, distance is height above hub
+                        drone.group.position.y = hubHeight + dist;
+                        drone.group.position.z = hubZ;
+                        // Rotation is fixed (body flat), camera looks down
+                    }
+                    else if (drone.type === 'hub-centered') {
+                        const dist = drone.params.distance;
+                        drone.group.position.set(0, hubHeight, hubZ + dist);
+                        drone.group.lookAt(0, hubHeight, hubZ);
+                    }
+                }
+
+                // Update Camera FOV
+                const focalLength = drone.params.focal;
+                const vFovRad = 2 * Math.atan(24 / (2 * focalLength));
+                const vFovDeg = vFovRad * (180 / Math.PI);
+                drone.camera.fov = vFovDeg;
+                drone.camera.updateProjectionMatrix();
+
+                // Update Spotlight
+                if (drone.spotlight) {
+                    const aspect = 3 / 2;
+                    const tanHalfV = Math.tan(vFovRad / 2);
+                    const tanHalfH = tanHalfV * aspect;
+                    const tanHalfD = Math.sqrt(tanHalfV * tanHalfV + tanHalfH * tanHalfH);
+                    const halfAngleD = Math.atan(tanHalfD);
+                    drone.spotlight.angle = halfAngleD;
+                }
+            });
+
+            // Check visibility for active drone
+            checkBladeVisibility(drones[activeDroneIndex]);
 
             renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
             renderer.setScissorTest(false);
             renderer.render(scene, camera);
-            
-            //PIP
+
+            // PIP for Active Drone
             const width = 300; const height = 200; const x = 10; const y = 10;
             renderer.setScissor(x, y, width, height);
             renderer.setViewport(x, y, width, height);
             renderer.setScissorTest(true);
-            renderer.render(scene, droneCamera);
+            renderer.render(scene, drones[activeDroneIndex].camera);
             renderer.setScissorTest(false);
         }
     </script>
 </body>
+
 </html>
