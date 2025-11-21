@@ -204,13 +204,6 @@
 </head>
 
 <body>
-    <!-- Info Panel -->
-    <div id="info" style="display: block;">
-        <span class="close-btn" onclick="this.parentElement.style.display='none'">[X]</span>
-        <h3>Drone Inspection Sim</h3>
-        <p style="font-size: 0.9em; color: #ccc;">Use the "Help" toggle on the right for controls.</p>
-    </div>
-
     <!-- Drone Feed Overlays -->
     <div id="cam-stat">Pass Duration: <span id="val-pass">--</span> ms</div>
     <div id="cam-border"></div>
@@ -700,7 +693,7 @@
 
             // Camera & Spotlight Setup
             const droneCamera = new THREE.PerspectiveCamera(50, 3 / 2, 0.1, 1000);
-            const fovSpotlight = new THREE.SpotLight(0xff0000, 50, 200, 0.5, 0.5, 0);
+            const fovSpotlight = new THREE.SpotLight(0xff0000, 20, 200, 0.5, 0.5, 0);
             fovSpotlight.map = createSpotlightTexture();
             const targetObject = new THREE.Object3D();
 
